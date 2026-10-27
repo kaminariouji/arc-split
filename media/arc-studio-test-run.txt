@@ -1,0 +1,22 @@
+Arc Studio — test run inside the project workspace
+Project: https://studio.arc.io/app/4a4be369-2b4a-43f1-804f-c43c670dccb1
+Captured: 2026-10-27, from the sandbox log of the turn that ran "forge test".
+
+Compiling 7 files with Solc 0.8.28
+Solc 0.8.28 finished in 1.11s
+Compiler run successful!
+
+Ran 10 tests for contracts/test/ArcSplit.t.sol:ArcSplitTest
+[PASS] testClaimPaysAndZeroes() (gas: 433589)
+[PASS] testDoubleClaimReverts() (gas: 430034)
+[PASS] testDuplicatePayeeReverts() (gas: 41496)
+[PASS] testNonPayeeCannotClaim() (gas: 424217)
+[PASS] testRoundingDustGoesToCreator() (gas: 434970)
+[PASS] testSharesMustSumTo10000() (gas: 66042)
+[PASS] testSplitIdCannotBeReused() (gas: 423848)
+[PASS] testSplitsByShares() (gas: 427395)
+[PASS] testSweepOnlyCreator() (gas: 422227)
+[PASS] testUnclaimedStaysClaimableAfterSweep() (gas: 435324)
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 24.07ms (3.20ms CPU time)
+
+Ran 1 test suite in 59.35ms (24.07ms CPU time): 10 tests passed, 0 failed, 0 skipped (10 total tests)
