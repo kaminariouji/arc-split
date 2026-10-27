@@ -1,0 +1,13 @@
+out/
+cache/
+broadcast/
+lib/
+node_modules/
+dist/
+approve.json
+create.json
+claim.json
+deploy.txt
+deploy-pages.txt
+out*.txt
+studio-prompt*.txt

@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ArcSplit — USDC revenue splits on Arc</title>
+<style>
+  :root { --bg:#0b0f14; --card:#131a22; --line:#1f2b36; --fg:#e6edf3; --dim:#8b9aa8; --acc:#4f9cf9; --ok:#3fb950; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:820px; margin:0 auto; padding:28px 20px 64px; }
+  h1 { font-size:22px; margin:0 0 4px; letter-spacing:-.01em; }
+  .sub { color:var(--dim); font-size:13px; margin-bottom:22px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  label { display:block; font-size:12px; color:var(--dim); margin-bottom:6px; text-transform:uppercase; letter-spacing:.06em; }
+  input, select { background:#0d141b; border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:9px 11px; font:inherit; width:100%; }
+  button { background:var(--acc); color:#04101f; border:0; border-radius:8px; padding:10px 16px; font-weight:600; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--fg); border:1px solid var(--line); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; word-break:break-all; }
+  .kv { display:grid; grid-template-columns:150px 1fr; gap:6px 12px; font-size:13px; }
+  .kv div:nth-child(odd) { color:var(--dim); }
+  .tag { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; border:1px solid var(--line); color:var(--dim); }
+  .ok { color:var(--ok); } .bad { color:var(--bad); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:7px 6px; border-bottom:1px solid var(--line); }
+  th { color:var(--dim); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+  .foot { color:var(--dim); font-size:12px; margin-top:24px; }
+  a { color:var(--acc); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ArcSplit</h1>
+  <div class="sub">USDC revenue splits on Arc mainnet. One deposit, many payees, each one withdraws on their own.</div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <div class="tag" id="netTag">chain —</div>
+        <div class="mono" id="addr" style="margin-top:8px"></div>
+      </div>
+      <button id="connect" class="ghost">Connect wallet</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>Split id</label>
+    <div class="row">
+      <input id="splitId" value="arc-split-demo-2026-10-28" />
+      <button id="load" class="ghost" style="white-space:nowrap">Load</button>
+    </div>
+    <div class="mono" id="idHash" style="color:var(--dim); margin-top:8px"></div>
+    <div id="splitOut" style="margin-top:14px"></div>
+  </div>
+
+  <div class="card">
+    <label>Your position</label>
+    <div id="me" class="kv"><div>status</div><div>connect a wallet</div></div>
+    <div class="row" style="margin-top:12px">
+      <button id="claim" disabled>Claim my share</button>
+      <span id="claimMsg" class="mono" style="color:var(--dim)"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>Create a split</label>
+    <div class="row" style="margin-bottom:10px">
+      <div style="flex:1 1 160px"><label>Amount (USDC)</label><input id="amount" value="0.10" /></div>
+      <div style="flex:1 1 200px"><label>Payee 1 (bps)</label><input id="p1" value="6000" /></div>
+      <div style="flex:1 1 200px"><label>Payee 2 (bps)</label><input id="p2" value="4000" /></div>
+    </div>
+    <div class="row">
+      <button id="create" disabled>Approve + create</button>
+      <span id="createMsg" class="mono" style="color:var(--dim)"></span>
+    </div>
+    <div class="foot">Payee 1 is your connected address. Payee 2 defaults to 0x000000000000000000000000000000000000A11C. Shares must add up to 10000 bps.</div>
+  </div>
+
+  <div class="foot">
+    Contract <span class="mono" id="addr2"></span> · <a id="repoLink" href="#">source</a> ·
+    reads go straight to the Arc RPC, writes go through your wallet.
+  </div>
+</div>
+
+<script type="module">
+import { createPublicClient, createWalletClient, custom, http, parseUnits, formatUnits, keccak256, toHex, defineChain } from 'https://esm.sh/viem@2.21.44'
+
+const CONTRACT = '0x4743aC7b133F98eD6fdfC897eb456bD12D8dB6b3'
+const USDC = '0x3600000000000000000000000000000000000000'
+const SECOND = '0x000000000000000000000000000000000000A11C'
+
+const arc = defineChain({
+  id: 5042, name: 'Arc Mainnet', nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+  rpcUrls: { default: { http: ['https://rpc.mainnet.arc.io'] } }
+})
+
+const ABI = [
+  { type:'function', name:'createSplit', stateMutability:'nonpayable', inputs:[{name:'id',type:'bytes32'},{name:'payees',type:'address[]'},{name:'shares',type:'uint96[]'},{name:'amount',type:'uint256'}], outputs:[] },
+  { type:'function', name:'claim', stateMutability:'nonpayable', inputs:[{name:'id',type:'bytes32'}], outputs:[{name:'amount',type:'uint256'}] },
+  { type:'function', name:'claimable', stateMutability:'view', inputs:[{name:'',type:'bytes32'},{name:'',type:'address'}], outputs:[{type:'uint256'}] },
+  { type:'function', name:'splitOf', stateMutability:'view', inputs:[{name:'id',type:'bytes32'}], outputs:[{name:'creator',type:'address'},{name:'total',type:'uint256'},{name:'allocated',type:'uint256'},{name:'swept',type:'bool'},{name:'payees',type:'address[]'},{name:'shares',type:'uint96[]'}] }
+]
+const ERC20 = [
+  { type:'function', name:'approve', stateMutability:'nonpayable', inputs:[{name:'s',type:'address'},{name:'a',type:'uint256'}], outputs:[{type:'bool'}] },
+  { type:'function', name:'balanceOf', stateMutability:'view', inputs:[{name:'a',type:'address'}], outputs:[{type:'uint256'}] }
+]
+
+const pub = createPublicClient({ chain: arc, transport: http('https://rpc.mainnet.arc.io') })
+let wallet = null, account = null, currentId = null
+
+const $ = (id) => document.getElementById(id)
+const short = (a) => a ? a.slice(0,6) + '…' + a.slice(-4) : '—'
+
+$('addr').textContent = CONTRACT
+$('addr2').textContent = CONTRACT
+$('repoLink').href = 'https://github.com/kaminariouji/arc-split'
+$('netTag').textContent = 'chain ' + arc.id + ' · mainnet'
+
+function idFrom (text) {
+  return text.startsWith('0x') && text.length === 66 ? text : keccak256(toHex(text))
+}
+
+async function load () {
+  const raw = $('splitId').value.trim()
+  if (!raw) return
+  const id = idFrom(raw)
+  currentId = id
+  $('idHash').textContent = id
+  try {
+    const [creator, total, allocated, swept, payees, shares] = await pub.readContract({ address: CONTRACT, abi: ABI, functionName: 'splitOf', args: [id] })
+    if (creator === '0x0000000000000000000000000000000000000000') {
+      $('splitOut').innerHTML = '<div class="bad">No split with this id yet.</div>'
+    } else {
+      const rows = payees.map((p, i) => '<tr><td class="mono">' + short(p) + '</td><td>' + (Number(shares[i]) / 100) + '%</td><td class="mono">' + formatUnits(total * BigInt(shares[i]) / 10000n, 6) + ' USDC</td></tr>').join('')
+      $('splitOut').innerHTML =
+        '<div class="kv" style="margin-bottom:10px">' +
+        '<div>creator</div><div class="mono">' + creator + '</div>' +
+        '<div>total</div><div>' + formatUnits(total, 6) + ' USDC</div>' +
+        '<div>allocated</div><div>' + formatUnits(allocated, 6) + ' USDC</div>' +
+        '<div>dust swept</div><div>' + (swept ? 'yes' : 'no') + '</div>' +
+        '</div><table><thead><tr><th>payee</th><th>share</th><th>slice</th></tr></thead><tbody>' + rows + '</tbody></table>'
+    }
+  } catch (e) {
+    $('splitOut').innerHTML = '<div class="bad">read failed: ' + (e.shortMessage || e.message) + '</div>'
+  }
+  refreshMe()
+}
+
+async function refreshMe () {
+  if (!account || !currentId) { $('me').innerHTML = '<div>status</div><div>connect a wallet</div>'; return }
+  const bal = await pub.readContract({ address: CONTRACT, abi: ABI, functionName: 'claimable', args: [currentId, account] })
+  $('me').innerHTML = '<div>account</div><div class="mono">' + account + '</div>' +
+    '<div>claimable</div><div class="' + (bal > 0n ? 'ok' : '') + '">' + formatUnits(bal, 6) + ' USDC</div>'
+  $('claim').disabled = bal === 0n
+  $('create').disabled = false
+}
+
+$('connect').onclick = async () => {
+  if (!window.ethereum) { $('claimMsg').textContent = 'no injected wallet'; return }
+  const [addr] = await window.ethereum.request({ method: 'eth_requestAccounts' })
+  account = addr
+  wallet = createWalletClient({ account, chain: arc, transport: custom(window.ethereum) })
+  try { await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x13b2' }] }) } catch {}
+  $('connect').textContent = short(account)
+  await refreshMe()
+}
+
+$('load').onclick = load
+$('splitId').onkeydown = (e) => { if (e.key === 'Enter') load() }
+
+$('claim').onclick = async () => {
+  $('claimMsg').textContent = 'sending…'
+  try {
+    const hash = await wallet.writeContract({ address: CONTRACT, abi: ABI, functionName: 'claim', args: [currentId] })
+    $('claimMsg').textContent = 'sent ' + hash.slice(0, 12) + '…'
+    await pub.waitForTransactionReceipt({ hash })
+    $('claimMsg').textContent = 'claimed ' + hash.slice(0, 12) + '…'
+    await load()
+  } catch (e) { $('claimMsg').textContent = (e.shortMessage || e.message).slice(0, 90) }
+}
+
+$('create').onclick = async () => {
+  $('createMsg').textContent = 'approving…'
+  try {
+    const amount = parseUnits($('amount').value, 6)
+    const p1 = Number($('p1').value), p2 = Number($('p2').value)
+    if (p1 + p2 !== 10000) throw new Error('shares must sum to 10000')
+    const id = idFrom($('splitId').value.trim())
+    const h1 = await wallet.writeContract({ address: USDC, abi: ERC20, functionName: 'approve', args: [CONTRACT, amount] })
+    await pub.waitForTransactionReceipt({ hash: h1 })
+    $('createMsg').textContent = 'creating…'
+    const h2 = await wallet.writeContract({ address: CONTRACT, abi: ABI, functionName: 'createSplit', args: [id, [account, SECOND], [p1, p2], amount] })
+    await pub.waitForTransactionReceipt({ hash: h2 })
+    $('createMsg').textContent = 'created ' + h2.slice(0, 12) + '…'
+    await load()
+  } catch (e) { $('createMsg').textContent = (e.shortMessage || e.message).slice(0, 90) }
+}
+
+load()
+</script>
+</body>
+</html>

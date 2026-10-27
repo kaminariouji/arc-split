@@ -1,0 +1,48 @@
+{
+  "note": "Raw receipts read from the Arc mainnet JSON-RPC endpoint. No block explorer login needed.",
+  "rpc": "https://rpc.mainnet.arc.io",
+  "chainId": 5042,
+  "generatedAt": "2026-10-27T20:16:48.553Z",
+  "contract": {
+    "address": "0x4743aC7b133F98eD6fdfC897eb456bD12D8dB6b3",
+    "codeBytes": 7100
+  },
+  "transactions": {
+    "deploy": {
+      "hash": "0x87d149925b6b0c886cde8cb12b3e2cfd7584b3c5e3fddf8abc8cf3f64e00b1c7",
+      "status": "success",
+      "block": 28190212,
+      "from": "0x8c062dc5d775b7d5efc168f75a875f392f53dcdf",
+      "to": null,
+      "gasUsed": 1585569,
+      "logs": 0
+    },
+    "approve": {
+      "hash": "0x36801fe12a6da2805b1c44140b4d417c0db44ad6fdd65e8cada9c8f99e6bb9b3",
+      "status": "success",
+      "block": 28190249,
+      "from": "0x8c062dc5d775b7d5efc168f75a875f392f53dcdf",
+      "to": "0x3600000000000000000000000000000000000000",
+      "gasUsed": 55438,
+      "logs": 1
+    },
+    "createSplit": {
+      "hash": "0x903d3e2900e61f9c37a61c6e6f9273447582d2b10f309eae01b5f1d641c647c7",
+      "status": "success",
+      "block": 28190267,
+      "from": "0x8c062dc5d775b7d5efc168f75a875f392f53dcdf",
+      "to": "0x4743ac7b133f98ed6fdfc897eb456bd12d8db6b3",
+      "gasUsed": 329821,
+      "logs": 3
+    },
+    "claim": {
+      "hash": "0xdd7517a4f5c68e447bf9120ba9b7b150aa7dfdcbf78280e56cd72ffe6c157b83",
+      "status": "success",
+      "block": 28190283,
+      "from": "0x8c062dc5d775b7d5efc168f75a875f392f53dcdf",
+      "to": "0x4743ac7b133f98ed6fdfc897eb456bd12d8db6b3",
+      "gasUsed": 55133,
+      "logs": 3
+    }
+  }
+}
